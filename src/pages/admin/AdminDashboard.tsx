@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '@/store/useAppStore';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,7 @@ const AdminDashboard = () => {
   const { currentUser, logout, addParticipants, getStats } = useAppStore();
   const [stats, setStats] = useState({ total: 0, breakfast: 0, lunch: 0, dinner: 0 });
   const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!currentUser || currentUser.role !== 'admin') {
@@ -32,43 +33,101 @@ const AdminDashboard = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Validate file type
+    const validTypes = ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel'];
+    if (!validTypes.includes(file.type) && !file.name.match(/\.(xlsx|xls)$/i)) {
+      toast({
+        title: 'Invalid File Type',
+        description: 'Please upload a valid Excel file (.xlsx or .xls)',
+        variant: 'destructive',
+      });
+      e.target.value = '';
+      return;
+    }
+
     setUploading(true);
 
     try {
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
+      
+      if (!workbook.SheetNames.length) {
+        throw new Error('Excel file is empty');
+      }
+
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
-      const participants = jsonData.map((row: any) => ({
-        name: row.Name || row.name,
-        teamName: row['Team Name'] || row.teamName || row.team,
-        mobile: String(row.Mobile || row.mobile),
-        email: row.Email || row.email,
-      }));
+      if (jsonData.length === 0) {
+        throw new Error('No data found in Excel file');
+      }
 
-      const result = addParticipants(participants);
+      // Normalize and validate data
+      const participants = jsonData.map((row: any) => {
+        // Try different column name variations
+        const name = row.Name || row.name || row.NAME || row['Participant Name'];
+        const teamName = row['Team Name'] || row.teamName || row.team || row.Team || row.TEAM || row['Team'];
+        const mobile = String(row.Mobile || row.mobile || row.MOBILE || row.Phone || row.phone || row['Phone Number'] || '');
+        const email = row.Email || row.email || row.EMAIL || '';
 
-      toast({
-        title: 'Upload Complete',
-        description: `Success: ${result.success}, Duplicates: ${result.duplicates}, Errors: ${result.errors.length}`,
+        return {
+          name,
+          teamName,
+          mobile,
+          email,
+        };
       });
+
+      // Check if we have any valid data
+      const validParticipants = participants.filter(p => p.name && p.teamName && p.mobile);
+      
+      if (validParticipants.length === 0) {
+        throw new Error('No valid participant data found. Please ensure columns: Name, Team Name, Mobile are present.');
+      }
+
+      const result = addParticipants(validParticipants);
+
+      if (result.success > 0) {
+        toast({
+          title: 'Upload Complete',
+          description: `Successfully added ${result.success} participant(s). ${result.duplicates > 0 ? `${result.duplicates} duplicate(s) skipped.` : ''} ${result.errors.length > 0 ? `${result.errors.length} error(s).` : ''}`,
+        });
+      }
 
       if (result.errors.length > 0) {
         console.error('Upload errors:', result.errors);
+        toast({
+          title: 'Some Errors Occurred',
+          description: `${result.errors.length} row(s) had issues. Check console for details.`,
+          variant: 'destructive',
+        });
+      }
+
+      if (result.success === 0 && result.errors.length > 0) {
+        toast({
+          title: 'Upload Failed',
+          description: 'No participants were added. Please check your Excel file format.',
+          variant: 'destructive',
+        });
       }
 
       setStats(getStats());
       e.target.value = ''; // Reset input
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Excel upload error:', error);
       toast({
         title: 'Upload Failed',
-        description: 'Failed to process Excel file',
+        description: error.message || 'Failed to process Excel file. Please check the file format.',
         variant: 'destructive',
       });
+      e.target.value = '';
     } finally {
       setUploading(false);
     }
+  };
+
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
   };
 
   const getPercentage = (count: number) => {
@@ -109,25 +168,25 @@ const AdminDashboard = () => {
             <Users className="mr-2 h-6 w-6" />
             Participants
           </Button>
-          <label htmlFor="file-upload" className="cursor-pointer">
+          <div>
             <Button
+              onClick={handleUploadClick}
               variant="outline"
               className="h-20 text-lg w-full"
               size="lg"
               disabled={uploading}
-              type="button"
             >
               <Upload className="mr-2 h-6 w-6" />
               {uploading ? 'Uploading...' : 'Upload Excel'}
             </Button>
             <Input
-              id="file-upload"
+              ref={fileInputRef}
               type="file"
               accept=".xlsx,.xls"
               onChange={handleFileUpload}
               className="hidden"
             />
-          </label>
+          </div>
         </div>
 
         {/* Statistics */}
