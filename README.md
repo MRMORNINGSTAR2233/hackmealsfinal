@@ -1,12 +1,43 @@
-# Hackathon Feast Tracker
+# HackOtsav 2025 - Meal Tracker
 
-A modern meal tracking system for hackathon events with real-time QR code scanning and database persistence.
+A modern, professional meal tracking system built for HackOtsav 2025 hackathon with premium purple theme and real-time QR code scanning.
 
-## 🚀 Quick Start
+## 🎯 Features
+
+- **Admin Dashboard**: Complete meal management with real-time analytics
+- **QR Code Scanner**: High-speed scanning with duplicate prevention  
+- **Participant Portal**: Personal dashboard with QR codes and meal status
+- **Real-time Sync**: Live updates across all devices
+- **Premium UI**: Purple-themed design matching HackOtsav 2025 branding
+- **Responsive**: Mobile-first design for all device types
+
+## 🚀 Quick Deploy to Vercel
 
 ### Prerequisites
-- Node.js & npm installed
 - Supabase account and project
+- GitHub repository (already set up at `MRMORNINGSTAR2233/hackmealsfinal`)
+
+### Deployment Steps
+
+1. **Import to Vercel:**
+   - Go to [Vercel Dashboard](https://vercel.com/dashboard)
+   - Click "New Project" 
+   - Import from GitHub: `MRMORNINGSTAR2233/hackmealsfinal`
+
+2. **Environment Variables:**
+   Add these in Vercel's Environment Variables section:
+   ```
+   VITE_SUPABASE_URL=your_supabase_project_url
+   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+   ```
+
+3. **Build Settings:**
+   - Framework Preset: `Vite`
+   - Build Command: `npm run build`
+   - Output Directory: `dist`
+   - Install Command: `npm install`
+
+4. **Deploy**: Click "Deploy" and your app will be live!
 
 ### Setup
 
