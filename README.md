@@ -1,20 +1,62 @@
-# Welcome to your Lovable project
+# Hackathon Feast Tracker
 
-## Project info
+A modern meal tracking system for hackathon events with real-time QR code scanning and database persistence.
 
-**URL**: https://lovable.dev/projects/58dcc266-a10b-4ffb-82ac-4baed82d9adc
+## 🚀 Quick Start
 
-## How can I edit this code?
+### Prerequisites
+- Node.js & npm installed
+- Supabase account and project
 
-There are several ways of editing your application.
+### Setup
 
-**Use Lovable**
+1. **Clone and install dependencies:**
+```bash
+git clone <YOUR_GIT_URL>
+cd <YOUR_PROJECT_NAME>
+npm install
+```
+
+2. **Configure Supabase:**
+```bash
+# Run the setup helper
+node setup-supabase.js
+```
+
+Follow the instructions to:
+- Get your Supabase anon key
+- Set up the database schema
+- Update your `.env` file
+
+3. **Start development server:**
+```bash
+npm run dev
+```
+
+4. **Access the application:**
+- Open http://localhost:8080
+- Admin login: `admin` / `admin123`
+
+## 🏗️ Architecture
+
+**Frontend:** React + TypeScript + Vite + Tailwind CSS + shadcn/ui
+**Backend:** Supabase (PostgreSQL + Auth + Real-time)
+**State:** Zustand with Supabase integration
+
+## 📚 Documentation
+
+- [Supabase Setup Guide](./SUPABASE_SETUP.md) - Detailed integration instructions
+- [Original Lovable README](./README-LOVABLE.md) - Development environment options
+
+## 🔧 Development
+
+This project supports multiple development approaches:
+
+**Use Lovable (Recommended for UI changes)**
 
 Simply visit the [Lovable Project](https://lovable.dev/projects/58dcc266-a10b-4ffb-82ac-4baed82d9adc) and start prompting.
 
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
+**Local Development**
 
 If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
 

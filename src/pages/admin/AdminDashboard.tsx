@@ -5,13 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { LogOut, Upload, QrCode, Users, Coffee, Utensils, Moon } from 'lucide-react';
+import { LogOut, Upload, QrCode, Users, Coffee, Utensils, Moon, Shield, FileSpreadsheet, BarChart3 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { currentUser, logout, addParticipants, getStats } = useAppStore();
+  const { currentUser, logout, addParticipants, getStats, loadParticipants, isLoading } = useAppStore();
   const [stats, setStats] = useState({ total: 0, breakfast: 0, lunch: 0, dinner: 0 });
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -21,8 +21,15 @@ const AdminDashboard = () => {
       navigate('/admin/login');
       return;
     }
-    setStats(getStats());
-  }, [currentUser, navigate, getStats]);
+    
+    // Load participants and update stats
+    const initializeData = async () => {
+      await loadParticipants();
+      setStats(getStats());
+    };
+    
+    initializeData();
+  }, [currentUser, navigate, getStats, loadParticipants]);
 
   const handleLogout = () => {
     logout();
@@ -62,13 +69,16 @@ const AdminDashboard = () => {
         throw new Error('No data found in Excel file');
       }
 
+      // Define type for Excel row data
+      type ExcelRow = Record<string, string | number | undefined>;
+
       // Normalize and validate data
-      const participants = jsonData.map((row: any) => {
+      const participants = jsonData.map((row: ExcelRow) => {
         // Try different column name variations
-        const name = row.Name || row.name || row.NAME || row['Participant Name'];
-        const teamName = row['Team Name'] || row.teamName || row.team || row.Team || row.TEAM || row['Team'];
+        const name = String(row.Name || row.name || row.NAME || row['Participant Name'] || '');
+        const teamName = String(row['Team Name'] || row.teamName || row.team || row.Team || row.TEAM || row['Team'] || '');
         const mobile = String(row.Mobile || row.mobile || row.MOBILE || row.Phone || row.phone || row['Phone Number'] || '');
-        const email = row.Email || row.email || row.EMAIL || '';
+        const email = String(row.Email || row.email || row.EMAIL || '');
 
         return {
           name,
@@ -85,13 +95,16 @@ const AdminDashboard = () => {
         throw new Error('No valid participant data found. Please ensure columns: Name, Team Name, Mobile are present.');
       }
 
-      const result = addParticipants(validParticipants);
+      const result = await addParticipants(validParticipants);
 
       if (result.success > 0) {
         toast({
           title: 'Upload Complete',
           description: `Successfully added ${result.success} participant(s). ${result.duplicates > 0 ? `${result.duplicates} duplicate(s) skipped.` : ''} ${result.errors.length > 0 ? `${result.errors.length} error(s).` : ''}`,
         });
+        
+        // Update stats after successful upload
+        setStats(getStats());
       }
 
       if (result.errors.length > 0) {
@@ -113,11 +126,11 @@ const AdminDashboard = () => {
 
       setStats(getStats());
       e.target.value = ''; // Reset input
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Excel upload error:', error);
       toast({
         title: 'Upload Failed',
-        description: error.message || 'Failed to process Excel file. Please check the file format.',
+        description: error instanceof Error ? error.message : 'Failed to process Excel file. Please check the file format.',
         variant: 'destructive',
       });
       e.target.value = '';
@@ -135,50 +148,88 @@ const AdminDashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 to-secondary/5">
-      <div className="container mx-auto p-6 max-w-7xl">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Admin Dashboard</h1>
-            <p className="text-muted-foreground">Manage participants and track meals</p>
+    <div className="min-h-screen gradient-bg">
+      {/* Header */}
+      <header className="border-b border-border/50 bg-white/80 backdrop-blur-sm">
+        <div className="container mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="bg-gradient-to-br from-primary to-primary/80 text-white rounded-xl p-2">
+                <Shield className="h-6 w-6" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold">Admin Dashboard</h1>
+                <p className="text-sm text-muted-foreground">Manage participants and track meals</p>
+              </div>
+            </div>
+            <Button 
+              onClick={handleLogout} 
+              variant="outline"
+              className="hover:bg-primary hover:text-white transition-colors"
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              Logout
+            </Button>
           </div>
-          <Button onClick={handleLogout} variant="outline">
-            <LogOut className="mr-2 h-4 w-4" />
-            Logout
-          </Button>
+        </div>
+      </header>
+
+      <div className="container mx-auto p-6 max-w-7xl space-y-8">
+        {/* Welcome Section */}
+        <div className="text-center py-8">
+          <h2 className="text-4xl font-black mb-2">Command Center</h2>
+          <p className="text-muted-foreground text-lg">
+            Monitor meal distribution and manage participants
+          </p>
         </div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <Button
-            onClick={() => navigate('/admin/scanner')}
-            className="h-20 text-lg"
-            size="lg"
-          >
-            <QrCode className="mr-2 h-6 w-6" />
-            QR Scanner
-          </Button>
-          <Button
-            onClick={() => navigate('/admin/participants')}
-            variant="secondary"
-            className="h-20 text-lg"
-            size="lg"
-          >
-            <Users className="mr-2 h-6 w-6" />
-            Participants
-          </Button>
-          <div>
-            <Button
-              onClick={handleUploadClick}
-              variant="outline"
-              className="h-20 text-lg w-full"
-              size="lg"
-              disabled={uploading}
-            >
-              <Upload className="mr-2 h-6 w-6" />
-              {uploading ? 'Uploading...' : 'Upload Excel'}
-            </Button>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="card-premium group cursor-pointer" onClick={() => navigate('/admin/scanner')}>
+            <div className="text-center space-y-4">
+              <div className="bg-gradient-to-br from-primary to-primary/80 text-white rounded-2xl p-6 w-20 h-20 mx-auto flex items-center justify-center group-hover:scale-110 transition-transform">
+                <QrCode className="h-10 w-10" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold mb-2">QR Scanner</h3>
+                <p className="text-muted-foreground">Scan participant QR codes to mark meals</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="card-premium group cursor-pointer" onClick={() => navigate('/admin/participants')}>
+            <div className="text-center space-y-4">
+              <div className="bg-gradient-to-br from-primary/80 to-primary/60 text-white rounded-2xl p-6 w-20 h-20 mx-auto flex items-center justify-center group-hover:scale-110 transition-transform">
+                <Users className="h-10 w-10" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold mb-2">Participants</h3>
+                <p className="text-muted-foreground">View and manage all registered participants</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="card-premium group">
+            <div className="text-center space-y-4">
+              <div 
+                className="bg-gradient-to-br from-primary/60 to-primary/40 text-white rounded-2xl p-6 w-20 h-20 mx-auto flex items-center justify-center group-hover:scale-110 transition-transform cursor-pointer"
+                onClick={handleUploadClick}
+              >
+                <FileSpreadsheet className="h-10 w-10" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold mb-2">Upload Excel</h3>
+                <p className="text-muted-foreground mb-4">Import participant data from spreadsheet</p>
+                <Button 
+                  onClick={handleUploadClick}
+                  variant="outline"
+                  disabled={uploading}
+                  className="w-full hover:bg-primary hover:text-white transition-colors"
+                >
+                  {uploading ? 'Uploading...' : 'Choose File'}
+                </Button>
+              </div>
+            </div>
             <Input
               ref={fileInputRef}
               type="file"
@@ -190,55 +241,73 @@ const AdminDashboard = () => {
         </div>
 
         {/* Statistics */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardDescription>Total Participants</CardDescription>
-              <CardTitle className="text-4xl">{stats.total}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Users className="h-8 w-8 text-muted-foreground" />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <CardDescription>Breakfast Served</CardDescription>
-              <CardTitle className="text-4xl">{stats.breakfast}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <Coffee className="h-8 w-8 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">{getPercentage(stats.breakfast)}%</span>
+        <div className="space-y-6">
+          <div className="flex items-center space-x-3">
+            <div className="bg-gradient-to-br from-primary to-primary/80 text-white rounded-xl p-2">
+              <BarChart3 className="h-5 w-5" />
+            </div>
+            <h3 className="text-2xl font-bold">Statistics Overview</h3>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="card-premium text-center">
+              <div className="mb-4">
+                <div className="bg-gradient-to-br from-primary to-primary/80 text-white rounded-2xl p-4 w-16 h-16 mx-auto flex items-center justify-center">
+                  <Users className="h-8 w-8" />
+                </div>
               </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <CardDescription>Lunch Served</CardDescription>
-              <CardTitle className="text-4xl">{stats.lunch}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <Utensils className="h-8 w-8 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">{getPercentage(stats.lunch)}%</span>
+              <div>
+                <h4 className="text-sm font-semibold text-muted-foreground mb-1">Total Participants</h4>
+                <p className="text-4xl font-black">{stats.total}</p>
               </div>
-            </CardContent>
-          </Card>
+            </div>
 
-          <Card>
-            <CardHeader className="pb-3">
-              <CardDescription>Dinner Served</CardDescription>
-              <CardTitle className="text-4xl">{stats.dinner}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <Moon className="h-8 w-8 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">{getPercentage(stats.dinner)}%</span>
+            <div className="card-premium text-center">
+              <div className="mb-4">
+                <div className="bg-gradient-to-br from-primary/80 to-primary/60 text-white rounded-2xl p-4 w-16 h-16 mx-auto flex items-center justify-center">
+                  <Coffee className="h-8 w-8" />
+                </div>
               </div>
-            </CardContent>
-          </Card>
+              <div>
+                <h4 className="text-sm font-semibold text-muted-foreground mb-1">Breakfast Served</h4>
+                <p className="text-4xl font-black">{stats.breakfast}</p>
+                <p className="text-sm text-muted-foreground">{getPercentage(stats.breakfast)}% completion</p>
+              </div>
+            </div>
+
+            <div className="card-premium text-center">
+              <div className="mb-4">
+                <div className="bg-gradient-to-br from-primary/60 to-primary/40 text-white rounded-2xl p-4 w-16 h-16 mx-auto flex items-center justify-center">
+                  <Utensils className="h-8 w-8" />
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-muted-foreground mb-1">Lunch Served</h4>
+                <p className="text-4xl font-black">{stats.lunch}</p>
+                <p className="text-sm text-muted-foreground">{getPercentage(stats.lunch)}% completion</p>
+              </div>
+            </div>
+
+            <div className="card-premium text-center">
+              <div className="mb-4">
+                <div className="bg-gradient-to-br from-primary/40 to-primary/20 text-black rounded-2xl p-4 w-16 h-16 mx-auto flex items-center justify-center">
+                  <Moon className="h-8 w-8" />
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-muted-foreground mb-1">Dinner Served</h4>
+                <p className="text-4xl font-black">{stats.dinner}</p>
+                <p className="text-sm text-muted-foreground">{getPercentage(stats.dinner)}% completion</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Info Footer */}
+        <div className="text-center py-4">
+          <p className="text-sm text-muted-foreground">
+            📊 Dashboard updates in real-time • Last refreshed: {new Date().toLocaleTimeString()}
+          </p>
         </div>
       </div>
     </div>
