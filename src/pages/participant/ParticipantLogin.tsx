@@ -146,7 +146,7 @@ const ParticipantLogin = () => {
         <div className="mt-6 p-4 bg-muted/50 rounded-xl border border-border/50">
           <p className="text-xs text-muted-foreground text-center">
             <strong>Sample Credentials:</strong><br />
-            Name: "Manya Patkar" | Team: "Tech Explorers"
+            Name: "Your Name" | Team Name: "Team Name"
           </p>
         </div>
       </div>
